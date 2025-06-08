@@ -52,21 +52,36 @@ struct User {
 }
 
 contract Lottery is Initializable, UUPSUpgradeable, OwnableUpgradeable {
-    // 合约部署人
-    address public owner;
-    // 合约部署时设置owner，必须这样做
-    constructor() {
-        owner = msg.sender;
-    }
-
-    // 合约部署后是公开的，不像传统网络服务有网络隔离，必须要有严格的权限控制
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner.");
-        _;
-    }
+    // 合约部署人，使用UUPS的实现
+    // address public owner;
 
     // 需要存储创建者列表，避免任何人随意创建抽奖活动
     mapping(address => User) private authorizedCreators;
+
+    // 合约部署时设置owner，必须这样做
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        // UUPS 要求构造函数调用 _disableInitializers
+        // 以防止实现合约在没有代理的情况下被意外初始化。
+        _disableInitializers();
+    }
+
+    function initialize(address owner) public virtual initializer {
+        // 初始化 UUPS 功能
+        __UUPSUpgradeable_init();
+        // 初始化所有权，将 initialOwner 设为 owner
+        __Ownable_init(owner);
+
+        // 初始化业务数据
+    }
+
+    function _authorizeUpgrade(address dev) internal override onlyOwner {}
+
+    // 合约部署后是公开的，不像传统网络服务有网络隔离，必须要有严格的权限控制
+    // modifier onlyOwner() {
+    //     require(msg.sender == owner, "Only owner.");
+    //     _;
+    // }
 
     // public代表外部可以读写，全局变量默认是storage（存储于链上），还是memory（可读写的临时变量）、calldata（只读临时变量）
     // 使用额外映射保存用户是否存在，映射是稀疏数据，能节省gas
